@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Climb the Tower</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: linear-gradient(#87ceeb, #ffffff);
+    }
+    canvas {
+      display: block;
+      background: #87ceeb;
+    }
+    #score {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      font-size: 24px;
+      font-family: sans-serif;
+      color: #333;
+    }
+    #achievement {
+      position: absolute;
+      top: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: gold;
+      padding: 10px 20px;
+      border-radius: 10px;
+      font-size: 20px;
+      font-family: sans-serif;
+      color: black;
+      opacity: 0;
+      transition: opacity 0.5s;
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
+    }
+    #shareBtn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 18px;
+      font-family: sans-serif;
+      padding: 8px 12px;
+      background: #4caf50;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    #shareBtn:hover {
+      background: #45a049;
+    }
+  </style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="score">Score: 0</div>
+<div id="achievement">Achievement!</div>
+<button id="shareBtn">Share Score</button>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const achievementPopup = document.getElementById('achievement');
+const shareBtn = document.getElementById('shareBtn');
+
+let width = window.innerWidth;
+let height = window.innerHeight;
+canvas.width = width;
+canvas.height = height;
+
+class Player {
+  constructor() {
+    this.width = 30;
+    this.height = 30;
+    this.x = width / 2 - this.width / 2;
+    this.y = height - 100;
+    this.velocityY = 0;
+    this.gravity = 0.5;
+    this.jumpPower = -10;
+  }
+  
+  jump() {
+    this.velocityY = this.jumpPower;
+  }
+  
+  update() {
+    this.velocityY += this.gravity;
+    this.y += this.velocityY;
+  }
+  
+  draw() {
+    ctx.fillStyle = 'red';
+    ctx.fillRect(this.x, this.y, this.width, this.height);
+  }
+}
+
+class Platform {
+  constructor(x, y, w = 100, h = 10) {
+    this.x = x;
+    this.y = y;
+    this.width = w;
+    this.height = h;
+  }
+  
+  draw() {
+    ctx.fillStyle = 'green';
+    ctx.fillRect(this.x, this.y, this.width, this.height);
+  }
+}
+
+let player = new Player();
+let platforms = [];
+let score = 0;
+let highestY = player.y;
+let achievementsUnlocked = [];
+
+const achievementMilestones = [10, 50, 100, 200];
+
+for (let i = 0; i < 10; i++) {
+  platforms.push(new Platform(Math.random() * (width - 100), height - i * 100));
+}
+
+function handlePlatforms() {
+  platforms.forEach(p => {
+    p.draw();
+  });
+  
+  if (player.y < highestY) {
+    score++;
+    document.getElementById('score').innerText = `Score: ${score}`;
+    highestY = player.y;
+    
+    let lastPlatformY = Math.min(...platforms.map(p => p.y));
+    platforms.push(new Platform(Math.random() * (width - 100), lastPlatformY - 100));
+    
+    checkAchievements();
+  }
+  
+  platforms = platforms.filter(p => p.y > player.y - height);
+}
+
+function collisionDetection() {
+  platforms.forEach(p => {
+    if (player.x < p.x + p.width &&
+        player.x + player.width > p.x &&
+        player.y + player.height < p.y + 10 &&
+        player.y + player.height > p.y &&
+        player.velocityY > 0) {
+      player.jump();
+    }
+  });
+}
+
+function gameOver() {
+  if (player.y > height) {
+    alert('Game Over! Your Score: ' + score);
+    document.location.reload();
+  }
+}
+
+function checkAchievements() {
+  achievementMilestones.forEach(milestone => {
+    if (score >= milestone && !achievementsUnlocked.includes(milestone)) {
+      achievementsUnlocked.push(milestone);
+      showAchievement(`Reached ${milestone} points!`);
+    }
+  });
+}
+
+function showAchievement(text) {
+  achievementPopup.innerText = text;
+  achievementPopup.style.opacity = 1;
+  setTimeout(() => {
+    achievementPopup.style.opacity = 0;
+  }, 2000);
+}
+
+function animate() {
+  ctx.clearRect(0, 0, width, height);
+  ctx.save();
+  ctx.translate(0, -player.y + height / 2);
+  
+  player.update();
+  player.draw();
+  
+  handlePlatforms();
+  collisionDetection();
+  
+  ctx.restore();
+  
+  gameOver();
+  
+  requestAnimationFrame(animate);
+}
+
+canvas.addEventListener('click', () => {
+  player.jump();
+});
+
+// Share button functionality
+shareBtn.addEventListener('click', () => {
+  const shareText = `I scored ${score} points in Climb the Tower! Can you beat me?`;
+  if (navigator.share) {
+    navigator.share({
+      title: 'Climb the Tower',
+      text: shareText,
+      url: window.location.href
+    }).catch(console.error);
+  } else {
+    navigator.clipboard.writeText(shareText).then(() => {
+      alert('Score copied to clipboard! Share it with your friends!');
+    });
+  }
+});
+
+animate();
+</script>
+</body>
+</html>
